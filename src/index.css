@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Gantari:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 2 100% 44%;
+    --primary-foreground: 0 0% 95%;
+
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 25 100% 50%;
+    --accent-foreground: 0 0% 7%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 25 100% 50%;
+
+    --radius: 1rem;
+
+    --highlight: 45 100% 50%;
+    --highlight-foreground: 0 0% 7%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 95%;
+
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 2 100% 44%;
+    --sidebar-primary-foreground: 0 0% 95%;
+    --sidebar-accent: 0 0% 13%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 25 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+    text-wrap: balance;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.4);
+  }
+  .inner-border {
+    box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.05);
+  }
+  .kanban-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .ticket-notch {
+    mask-image: radial-gradient(circle 12px at 0 50%, transparent 12px, black 12.5px),
+                radial-gradient(circle 12px at 100% 50%, transparent 12px, black 12.5px);
+    mask-composite: intersect;
+    -webkit-mask-composite: source-in;
+  }
+  .glow-accent {
+    filter: drop-shadow(0 0 8px hsl(25 100% 50% / 0.5));
+  }
+  .safe-area-top {
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  }
+  .safe-area-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+  .eliminated-overlay {
+    filter: saturate(0);
+    position: relative;
+  }
+  .eliminated-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(255,0,0,0.08) 4px,
+      rgba(255,0,0,0.08) 8px
+    );
+    border-radius: inherit;
+    pointer-events: none;
+  }
+}
