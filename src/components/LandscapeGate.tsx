@@ -12,7 +12,7 @@ export function LandscapeGate({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="relative min-h-dvh bg-background">
+    <div className="relative flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden bg-background">
       {isPortrait && (
         <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-background/95 px-8 text-center">
           <RotateCw className="h-12 w-12 text-accent" />
@@ -22,7 +22,7 @@ export function LandscapeGate({ children }: { children: ReactNode }) {
           </p>
         </div>
       )}
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
     </div>
   );
 }

@@ -5,26 +5,19 @@ import { FullScreenPage } from "@/components/FullScreenPage";
 import {
   getChampionshipById,
   getChampionshipClassification,
-  getChampionshipPhases,
-  type ClassificationRow,
-  type PhaseDetail,
+  getChampionshipPhases
 } from "@/lib/api/championships";
-import { PHASE_TYPE_LABELS, type PhaseType } from "@/types/championship";
-import type { Championship } from "@/types/championship";
-
-function inferType(phase: PhaseDetail): PhaseType {
-  if (phase.type === "MATA-MATA" || phase.type === "GRUPOS" || phase.type === "PONTOS-CORRIDOS") {
-    return phase.type;
-  }
-  if (phase.groups.length > 1) return "GRUPOS";
-  return "PONTOS-CORRIDOS";
-}
+import { PhaseTypeTranslation, type IChampionshipPhase } from "@/types/championship-phase";
+import { IChampionship } from "@/types/championship";
+import { IChampionshipClassification } from "@/types/championship-classification";
+import { ITeam } from "@/types/team";
+  
 
 export default function ChampionshipTable() {
   const { id } = useParams();
-  const [championship, setChampionship] = useState<Championship | null>(null);
-  const [phases, setPhases] = useState<PhaseDetail[]>([]);
-  const [rows, setRows] = useState<ClassificationRow[]>([]);
+  const [championship, setChampionship] = useState<IChampionship | null>(null);
+  const [phases, setPhases] = useState<IChampionshipPhase[]>([]);
+  const [rows, setRows] = useState<IChampionshipClassification[]>([]);
   const [phaseId, setPhaseId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +35,7 @@ export default function ChampionshipTable() {
         setChampionship(champ);
         setPhases(phaseList);
         setRows(classification);
-        setPhaseId(phaseList[0]?.id ?? "");
+        setPhaseId(phaseList[0]?._id ?? "");
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao carregar tabela."))
       .finally(() => {
@@ -53,18 +46,18 @@ export default function ChampionshipTable() {
     };
   }, [id]);
 
-  const currentPhase = phases.find((p) => p.id === phaseId) ?? phases[0];
-  const type = currentPhase ? inferType(currentPhase) : "PONTOS-CORRIDOS";
+  const currentPhase = phases.find((p) => p._id === phaseId) ?? phases[0];
+  // const type = currentPhase ? inferType(currentPhase) : "PONTOS-CORRIDOS";
 
   const groups = useMemo(() => {
-    const ofPhase = rows.filter((r) => r.phaseId === (currentPhase?.id ?? ""));
-    const map = new Map<string, ClassificationRow[]>();
-    for (const row of ofPhase) {
-      const key = type === "PONTOS-CORRIDOS" ? currentPhase?.description || "Classificação" : row.group || "Geral";
-      const list = map.get(key) ?? [];
-      list.push(row);
-      map.set(key, list);
-    }
+    // const ofPhase = rows.filter((r) => r.phase?._id === (currentPhase?._id ?? ""));
+    const map = new Map<string, IChampionshipClassification[]>();
+    // for (const row of ofPhase) {
+    //   const key = type === "PONTOS-CORRIDOS" ? currentPhase?.description || "Classificação" : row.group || "Geral";
+    //   const list = map.get(key) ?? [];
+    //   list.push(row);
+    //   map.set(key, list);
+    // }
     for (const list of map.values()) {
       list.sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goalsFor - a.goalsFor);
     }
@@ -72,7 +65,7 @@ export default function ChampionshipTable() {
       for (const g of currentPhase.groups) map.set(g.name, []);
     }
     return Array.from(map.entries());
-  }, [rows, currentPhase, type]);
+  }, [rows, currentPhase]);
 
   return (
     <FullScreenPage title={championship ? `Tabela · ${championship.name}` : "Tabela"}>
@@ -82,12 +75,12 @@ export default function ChampionshipTable() {
         <div className="flex h-full min-h-0 flex-col gap-4 p-4">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {phases.map((p) => {
-              const active = p.id === currentPhase?.id;
+              const active = p._id === currentPhase?._id;
               return (
                 <button
-                  key={p.id}
+                  key={p._id}
                   type="button"
-                  onClick={() => setPhaseId(p.id)}
+                  onClick={() => setPhaseId(p._id)}
                   className={`h-12 shrink-0 rounded-xl px-4 text-sm font-bold ${
                     active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
                   }`}
@@ -100,7 +93,7 @@ export default function ChampionshipTable() {
 
           {currentPhase && (
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {PHASE_TYPE_LABELS[type]} · {type === "GRUPOS" ? `${groups.length} grupo(s)` : "Tabela única"}
+              {/* {PhaseTypeTranslation[type]} · {type === "GRUPOS" ? `${groups.length} grupo(s)` : "Tabela única"} */}
             </p>
           )}
 
@@ -114,21 +107,21 @@ export default function ChampionshipTable() {
                   <ul className="space-y-2">
                     {list.map((row, idx) => (
                       <li
-                        key={row.id}
+                        key={row._id}
                         className="flex min-h-14 items-center gap-3 rounded-xl bg-secondary px-3"
                       >
                         <span className="w-8 text-center text-lg font-black text-muted-foreground">
                           {idx + 1}
                         </span>
-                        {row.teamImageUrl ? (
-                          <img src={row.teamImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                        {(row.team as ITeam)?.image?.url ? (
+                          <img src={(row.team as ITeam)?.image?.url} alt={(row.team as ITeam)?.name || ""} className="h-8 w-8 rounded-full object-cover" />
                         ) : (
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                            {(row.teamShortName ?? row.teamName).slice(0, 2)}
+                            {(row.team as ITeam)?.shortName ?? (row.team as ITeam)?.name?.slice(0, 2)}
                           </span>
                         )}
                         <span className="min-w-0 flex-1 truncate font-bold">
-                          {row.teamShortName ?? row.teamName}
+                          {(row.team as ITeam)?.shortName ?? (row.team as ITeam)?.name}
                         </span>
                         <span className="text-lg font-black tabular-nums text-highlight">{row.points}</span>
                         <span className="hidden text-xs text-muted-foreground sm:inline">

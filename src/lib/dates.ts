@@ -55,3 +55,22 @@ export function formatDateTimeBR(iso?: string): string {
     minute: "2-digit",
   });
 }
+
+/** Ex.: segunda-feira, 04/09/2026 16:00 */
+export function formatWeekdayDateTimeBR(value?: Date | string | null): string {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const weekday = d.toLocaleDateString("pt-BR", { weekday: "long" });
+  const date = d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `${weekday}, ${date} ${time}`;
+}

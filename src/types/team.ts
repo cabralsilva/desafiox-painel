@@ -1,3 +1,5 @@
+import { IFile } from "./file";
+
 export type Modality =
   | "SOCCER"
   | "BASKETBALL"
@@ -10,20 +12,16 @@ export type Modality =
   | "AMERICAN_FOOTBALL"
   | "RUGBY";
 
-export interface TeamImage {
-  contentType?: string;
-  format?: string;
-  description?: string;
-  url?: string;
-}
-
-export interface Team {
-  id: string;
+export interface ITeam {
+  _id: string;
   name: string;
   shortName?: string;
   logoUrl?: string;
-  image?: TeamImage;
+  image?: IFile
+  externalId?: string;
   modality: Modality;
+  createdAtDateTime: Date;
+  updatedAtDateTime: Date;
 }
 
 export const MODALITY_LABELS: Record<Modality, string> = {

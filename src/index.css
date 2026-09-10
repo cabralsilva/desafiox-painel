@@ -81,6 +81,13 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
   }
+  .scrollbar-width-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-width-none::-webkit-scrollbar {
+    display: none;
+  }
   .ticket-notch {
     mask-image: radial-gradient(circle 12px at 0 50%, transparent 12px, black 12.5px),
                 radial-gradient(circle 12px at 100% 50%, transparent 12px, black 12.5px);

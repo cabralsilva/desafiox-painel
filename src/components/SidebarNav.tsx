@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
+  MessageCircle,
   Trophy,
   Flame,
   Shield,
@@ -9,12 +10,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Wordmark } from "@/components/Wordmark";
+import { useChatList } from "@/hooks/useChatList";
 import { clearAuthSession } from "@/lib/session";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS: { to: string; label: string; icon: LucideIcon; exact?: boolean }[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/app/chat-suporte", label: "Chat/Suporte", icon: MessageCircle },
   { to: "/app/campeonatos", label: "Campeonatos", icon: Trophy },
   { to: "/app/desafios", label: "Desafios", icon: Flame },
   { to: "/app/perfis-acesso", label: "Perfis de acesso", icon: Shield },
@@ -23,6 +26,7 @@ export const NAV_ITEMS: { to: string; label: string; icon: LucideIcon; exact?: b
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
+  const { unreadTotal } = useChatList();
 
   const handleLogout = () => {
     onNavigate?.();
@@ -63,10 +67,13 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                       className={cn("h-5 w-5 shrink-0", isActive ? "text-primary" : "")}
                       strokeWidth={isActive ? 2.4 : 1.7}
                     />
-                    <span className="text-base font-semibold">{label}</span>
-                    {isActive && (
-                      <span className="ml-auto h-8 w-1 rounded-full bg-primary" />
-                    )}
+                    <span className="flex-1 text-base font-semibold">{label}</span>
+                    {to === "/app/chat-suporte" && unreadTotal > 0 ? (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-black text-primary-foreground">
+                        {unreadTotal}
+                      </span>
+                    ) : null}
+                    {isActive ? <span className="h-8 w-1 shrink-0 rounded-full bg-primary" /> : null}
                   </>
                 )}
               </NavLink>

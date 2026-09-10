@@ -10,6 +10,11 @@ import Championships from "@/pages/Championships";
 import ChampionshipForm from "@/pages/ChampionshipForm";
 import ChampionshipTable from "@/pages/ChampionshipTable";
 import ChampionshipRounds from "@/pages/ChampionshipRounds";
+import AccessProfiles from "@/pages/AccessProfiles";
+import AccessProfileForm from "@/pages/AccessProfileForm";
+import AdminUsers from "@/pages/AdminUsers";
+import AdminUserForm from "@/pages/AdminUserForm";
+import SupportChat from "@/pages/SupportChat";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 import { isAuthenticated } from "@/lib/session";
@@ -32,15 +37,20 @@ const App = () => (
           <Route element={<RequireAuth />}>
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="chat-suporte" element={<SupportChat />} />
               <Route path="campeonatos" element={<Championships />} />
               <Route path="desafios" element={<ComingSoon title="Desafios" />} />
-              <Route path="perfis-acesso" element={<ComingSoon title="Perfis de acesso" />} />
-              <Route path="usuarios" element={<ComingSoon title="Usuários" />} />
+              <Route path="perfis-acesso" element={<AccessProfiles />} />
+              <Route path="usuarios" element={<AdminUsers />} />
             </Route>
             <Route path="/app/campeonatos/novo" element={<ChampionshipForm />} />
             <Route path="/app/campeonatos/:id/editar" element={<ChampionshipForm />} />
             <Route path="/app/campeonatos/:id/tabela" element={<ChampionshipTable />} />
             <Route path="/app/campeonatos/:id/rodadas" element={<ChampionshipRounds />} />
+            <Route path="/app/perfis-acesso/novo" element={<AccessProfileForm />} />
+            <Route path="/app/perfis-acesso/:id/editar" element={<AccessProfileForm />} />
+            <Route path="/app/usuarios/novo" element={<AdminUserForm />} />
+            <Route path="/app/usuarios/:id/editar" element={<AdminUserForm />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

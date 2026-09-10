@@ -1,11 +1,29 @@
 import { apiRequest } from "@/lib/api";
-import { setAuthSession } from "@/lib/session";
 import { getAccountIdFromToken } from "@/lib/jwtPayload";
+import { fetchContactByAdminAccount } from "@/lib/api/contacts";
+import { setAuthSession, setSessionContact } from "@/lib/session";
+import type { IContact } from "@/types/contact";
 
 export interface AdminAccount {
   id: string;
   name: string;
   emailAccess: string;
+}
+
+export async function loadSessionContact(): Promise<IContact | null> {
+  const adminAccountId = getAccountIdFromToken();
+  if (!adminAccountId) {
+    setSessionContact(null);
+    return null;
+  }
+  try {
+    const contact = await fetchContactByAdminAccount(adminAccountId);
+    setSessionContact(contact);
+    return contact;
+  } catch {
+    setSessionContact(null);
+    return null;
+  }
 }
 
 export async function adminSignIn(email: string, password: string): Promise<string> {
@@ -25,6 +43,7 @@ export async function adminSignIn(email: string, password: string): Promise<stri
   const token = data?.access_token as string | undefined;
   if (!token) throw new Error("Token de acesso não retornado.");
   setAuthSession(token);
+  await loadSessionContact();
   return token;
 }
 
