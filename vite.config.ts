@@ -50,6 +50,7 @@ export default defineConfig(() => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ["sw-push.js"],
       },
       devOptions: { enabled: false },
     }),

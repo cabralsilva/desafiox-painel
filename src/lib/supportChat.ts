@@ -213,6 +213,17 @@ export function messageDeliveryReceipt(message: {
 }
 
 /** API vem em desc; o histórico visual é cronológico (mais recente junto do compositor). */
+function receiptEntryId(entry: {
+  contact?: string | IContact;
+  receivedBy?: string | IContact;
+  seenBy?: string | IContact;
+}): string {
+  if (entry.receivedBy) return receiptContactId(entry.receivedBy);
+  if (entry.seenBy) return receiptContactId(entry.seenBy);
+  if (entry.contact) return receiptContactId(entry.contact);
+  return "";
+}
+
 export function mapApiChatMessages(
   items: IChatMessage[],
   chat: SupportChat,
@@ -221,8 +232,9 @@ export function mapApiChatMessages(
   return [...items].reverse().map((item) => {
     const attachments = (item.files ?? []).map(mapApiFile);
     const text = item.content?.trim() || undefined;
+    const clientMessageId = (item as IChatMessage & { clientMessageId?: string }).clientMessageId;
     return {
-      id: entityId(item._id) || newId("msg"),
+      id: entityId(item._id) || clientMessageId || newId("msg"),
       author: messageAuthor(item, chat, agentContactId),
       kind: attachments[0]?.kind ?? "text",
       text: text && !isAutoAttachmentCaption(text, attachments) ? text : undefined,
@@ -230,8 +242,13 @@ export function mapApiChatMessages(
       sentAt: toIso(item.sendDateTime),
       status: item.status as ChatMessageStatus | undefined,
       senderId: senderId(item.sender) || undefined,
-      receivedByIds: (item.receivements ?? []).map((entry) => receiptContactId(entry.contact)).filter(Boolean),
-      seenByIds: (item.seens ?? []).map((entry) => receiptContactId(entry.contact)).filter(Boolean),
+      receivedByIds: (item.receivements ?? [])
+        .map((entry) => receiptEntryId(entry))
+        .filter(Boolean),
+      seenByIds: (item.seens ?? [])
+        .map((entry) => receiptEntryId(entry))
+        .filter(Boolean),
+      clientMessageId,
     };
   });
 }

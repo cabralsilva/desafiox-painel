@@ -15,17 +15,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatList } from "@/hooks/useChatList";
-import { lastAtTime, supportChatFromApi } from "@/lib/chatList";
+import { useSearchParams } from "react-router-dom";
+import { lastAtTime, markChatReadLocal, supportChatFromApi, unreadMessageIds } from "@/lib/chatList";
+import { enqueueChatMessage } from "@/lib/api/chatRealtime";
 import { createChatMessage } from "@/lib/api/chatMessages";
 import { fileToApiFile, formatBytes, mapApiChatMessages, newId } from "@/lib/supportChat";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, SupportTicket } from "@/types/supportChat";
 import { MessageCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export default function SupportChat() {
-  const { chats, loading, agentContactId, patchChat, upsertChat, reloadChats } = useChatList();
+  const { chats, loading, agentContactId, patchChat, upsertChat, reloadChats, setActiveChatId, markMessagesRead } = useChatList();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -34,6 +37,10 @@ export default function SupportChat() {
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [composerFocusKey, setComposerFocusKey] = useState(0);
   const canSend = Boolean(agentContactId);
+
+  useEffect(() => {
+    return () => setActiveChatId(null);
+  }, [setActiveChatId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -52,10 +59,21 @@ export default function SupportChat() {
 
   const selectChat = (id: string) => {
     setSelectedId(id);
+    setActiveChatId(id);
     setMobileShowChat(true);
     setComposerFocusKey((key) => key + 1);
     patchChat(id, (chat) => ({ ...chat, unread: 0 }));
   };
+
+  useEffect(() => {
+    const chatId = searchParams.get("chat");
+    if (!chatId) return;
+    if (!chats.some((chat) => chat.id === chatId)) return;
+    selectChat(chatId);
+    const next = new URLSearchParams(searchParams);
+    next.delete("chat");
+    setSearchParams(next, { replace: true });
+  }, [chats, searchParams, setSearchParams]);
 
   const sendText = async (text: string) => {
     if (!selected) {
@@ -66,32 +84,33 @@ export default function SupportChat() {
       throw new Error("Contato do usuário logado não encontrado.");
     }
     const sendDateTime = new Date().toISOString();
+    const clientMessageId = crypto.randomUUID();
+    const optimistic: ChatMessage = {
+      id: clientMessageId,
+      clientMessageId,
+      author: "agent",
+      kind: "text",
+      text,
+      sentAt: sendDateTime,
+      status: "NOT_SENT",
+      senderId: agentContactId,
+      receivedByIds: [],
+      seenByIds: [],
+    };
+    patchChat(selected.id, (chat) => ({
+      ...chat,
+      lastMessage: text,
+      lastMessageSenderId: agentContactId,
+      lastAt: sendDateTime,
+      messages: [...chat.messages, optimistic],
+    }));
     try {
-      const created = await createChatMessage({
-        chat: selected.id,
-        sender: agentContactId,
+      await enqueueChatMessage({
+        chatId: selected.id,
         content: text,
+        clientMessageId,
         sendDateTime,
       });
-      const [mapped] = mapApiChatMessages([created], selected, agentContactId);
-      const message: ChatMessage = mapped ?? {
-        id: newId("msg"),
-        author: "agent",
-        kind: "text",
-        text,
-        sentAt: sendDateTime,
-        status: "SENT",
-        senderId: agentContactId,
-        receivedByIds: [],
-        seenByIds: [],
-      };
-      patchChat(selected.id, (chat) => ({
-        ...chat,
-        lastMessage: text,
-        lastMessageSenderId: agentContactId,
-        lastAt: message.sentAt,
-        messages: [...chat.messages, message],
-      }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enviar mensagem.");
       throw e;
@@ -196,7 +215,9 @@ export default function SupportChat() {
             canSend={canSend}
             agentContactId={agentContactId}
             onMessagesLoaded={(chatId, messages) => {
-              patchChat(chatId, (c) => ({ ...c, messages }));
+              const unread = unreadMessageIds(messages, agentContactId);
+              patchChat(chatId, (c) => markChatReadLocal({ ...c, messages }, agentContactId));
+              markMessagesRead(chatId, unread);
             }}
           />
         ) : (

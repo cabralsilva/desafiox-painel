@@ -23,6 +23,7 @@ export interface ChatMessage {
   senderId?: string;
   receivedByIds?: string[];
   seenByIds?: string[];
+  clientMessageId?: string;
 }
 
 export interface SupportTicketArtifact {

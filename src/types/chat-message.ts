@@ -38,11 +38,11 @@ export interface IChatMessage {
   status: StatusChatMessage;
   sendDateTime: Date | string;
   receivements?: {
-    contact: string | IContact;
+    receivedBy: string | IContact;
     receivedDateTime: Date;
   }[];
   seens?: {
-    contact: string | IContact;
+    seenBy: string | IContact;
     seenDateTime: Date;
   }[];
   type?: TypeOfMessageNotication;

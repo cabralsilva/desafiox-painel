@@ -1,7 +1,9 @@
 import { apiRequest } from "@/lib/api";
-import { getAccountIdFromToken } from "@/lib/jwtPayload";
+import { deactivateDeviceSession } from "@/lib/api/chatRealtime";
 import { fetchContactByAdminAccount } from "@/lib/api/contacts";
-import { setAuthSession, setSessionContact } from "@/lib/session";
+import { getDeviceId } from "@/lib/deviceId";
+import { getAccountIdFromToken } from "@/lib/jwtPayload";
+import { clearAuthSession, setAuthSession, setSessionContact } from "@/lib/session";
 import type { IContact } from "@/types/contact";
 
 export interface AdminAccount {
@@ -61,4 +63,13 @@ export async function fetchLoggedAdmin(): Promise<AdminAccount | null> {
     name: body.name ?? "Administrador",
     emailAccess: body.emailAccess ?? "",
   };
+}
+
+export async function logoutAdmin(): Promise<void> {
+  try {
+    await deactivateDeviceSession(getDeviceId());
+  } catch {
+    /* sessão local encerra mesmo se o device já estiver inativo */
+  }
+  clearAuthSession();
 }

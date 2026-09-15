@@ -34,6 +34,7 @@ export const ACCESS_ROLE_GROUPS: AccessRoleGroup[] = [
       { prefix: "admin-chat-contact", label: "Contatos do chat" },
       { prefix: "admin-chat-chat", label: "Conversas" },
       { prefix: "admin-chat-chat-message", label: "Mensagens do chat" },
+      { prefix: "admin-chat-realtime", label: "Realtime do chat" },
     ],
   },
   {

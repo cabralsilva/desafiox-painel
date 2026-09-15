@@ -3,7 +3,7 @@ import type { IChatMessage } from "@/types/chat-message";
 import type { IFile } from "@/types/file";
 import type { IPagingResult } from "@/types/paging";
 
-const LIST_SELECT = "content,status,sendDateTime,files,sender,receivements.contact,seens.contact";
+const LIST_SELECT = "content,status,sendDateTime,files,sender,receivements.receivedBy,seens.seenBy";
 
 export type CreateChatMessagePayload = {
   chat: string;
@@ -23,7 +23,7 @@ export async function searchChatMessages(params: {
   sp.set("chat", params.chatId);
   if (params.page != null) sp.set("page", String(params.page));
   if (params.limit != null) sp.set("limit", String(params.limit));
-  sp.set("populate", "sender,receivements.contact,seens.contact");
+  sp.set("populate", "sender,receivements.receivedBy,seens.seenBy");
   sp.set("select", LIST_SELECT);
   sp.set("orderBy", "sendDateTime");
   sp.set("orderSense", "desc");

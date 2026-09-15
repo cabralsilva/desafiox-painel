@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Wordmark } from "@/components/Wordmark";
 import { useChatList } from "@/hooks/useChatList";
-import { clearAuthSession } from "@/lib/session";
+import { logoutAdmin } from "@/lib/api/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -30,9 +30,10 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const handleLogout = () => {
     onNavigate?.();
-    clearAuthSession();
-    toast.success("Sessão encerrada.");
-    navigate("/login");
+    void logoutAdmin().then(() => {
+      toast.success("Sessão encerrada.");
+      navigate("/login");
+    });
   };
 
   return (
