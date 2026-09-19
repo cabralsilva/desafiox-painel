@@ -37,10 +37,13 @@ export interface ChatRealtimeEvent {
 
 export async function enqueueChatMessage(payload: {
   chatId: string;
-  content: string;
+  content?: string;
   clientMessageId: string;
   sendDateTime: string;
-}): Promise<{ accepted: boolean; correlationId: string; clientMessageId: string; chatId: string }> {
+  templateName?: string;
+  templateLanguage?: string;
+  templateComponents?: Record<string, unknown>[];
+}): Promise<{ accepted: boolean; correlationId: string; clientMessageId: string; chatId: string; whatsappMessageType?: string }> {
   const res = await apiRequest("/admin/chat/realtime/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -49,6 +52,47 @@ export async function enqueueChatMessage(payload: {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.message ?? `enqueueChatMessage: ${res.status}`);
   return body;
+}
+
+export type WhatsAppSessionWindow = {
+  open: boolean;
+  lastCustomerMessageAt: string | null;
+  expiresAt: string | null;
+  customerWaId: string | null;
+};
+
+export async function fetchWhatsAppWindow(chatId: string): Promise<WhatsAppSessionWindow> {
+  const res = await apiRequest(`/admin/chat/realtime/chats/${encodeURIComponent(chatId)}/whatsapp-window`, {
+    invalidateOnAuthError: false,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.message ?? `fetchWhatsAppWindow: ${res.status}`);
+  }
+  return {
+    open: Boolean(body.open),
+    lastCustomerMessageAt: body.lastCustomerMessageAt ?? null,
+    expiresAt: body.expiresAt ?? null,
+    customerWaId: body.customerWaId ?? null,
+  };
+}
+
+export type WhatsAppApprovedTemplate = {
+  name: string;
+  language: string;
+  status: string;
+  category?: string;
+};
+
+export async function fetchWhatsAppTemplates(): Promise<WhatsAppApprovedTemplate[]> {
+  const res = await apiRequest("/admin/chat/realtime/whatsapp/templates", {
+    invalidateOnAuthError: false,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body?.message ?? `fetchWhatsAppTemplates: ${res.status}`);
+  }
+  return Array.isArray(body.items) ? body.items : [];
 }
 
 export async function markChatRead(chatId: string): Promise<{ chatId: string; updated: number }> {

@@ -35,10 +35,12 @@ export function ChatThread({
   detailsOpen,
   onToggleDetails,
   onSendText,
+  onSendTemplate,
   onSendFiles,
   composerFocusKey,
   onMessagesLoaded,
   canSend,
+  sessionWindowOpen,
   agentContactId,
 }: {
   chat: SupportChat;
@@ -46,10 +48,12 @@ export function ChatThread({
   detailsOpen: boolean;
   onToggleDetails: () => void;
   onSendText: (text: string) => void | Promise<void>;
+  onSendTemplate: (templateName: string, templateLanguage: string) => void | Promise<void>;
   onSendFiles: (files: File[], kind: "image" | "video" | "file") => void | Promise<void>;
   composerFocusKey?: string | number;
   onMessagesLoaded: (chatId: string, messages: ChatMessage[]) => void;
   canSend: boolean;
+  sessionWindowOpen: boolean | null;
   agentContactId?: string | null;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -331,9 +335,11 @@ export function ChatThread({
 
       <ChatComposer
         onSendText={onSendText}
+        onSendTemplate={onSendTemplate}
         onSendFiles={onSendFiles}
         focusKey={composerFocusKey}
         canSend={canSend}
+        sessionWindowOpen={sessionWindowOpen}
       />
       {lightbox ? (
         <MediaLightbox

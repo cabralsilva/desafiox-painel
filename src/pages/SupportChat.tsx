@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useChatList } from "@/hooks/useChatList";
 import { useSearchParams } from "react-router-dom";
 import { lastAtTime, markChatReadLocal, supportChatFromApi, unreadMessageIds } from "@/lib/chatList";
-import { enqueueChatMessage } from "@/lib/api/chatRealtime";
+import { enqueueChatMessage, fetchWhatsAppWindow, type WhatsAppSessionWindow } from "@/lib/api/chatRealtime";
 import { createChatMessage } from "@/lib/api/chatMessages";
 import { fileToApiFile, formatBytes, mapApiChatMessages, newId } from "@/lib/supportChat";
 import { cn } from "@/lib/utils";
@@ -36,11 +36,32 @@ export default function SupportChat() {
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [composerFocusKey, setComposerFocusKey] = useState(0);
+  const [waWindow, setWaWindow] = useState<WhatsAppSessionWindow | null>(null);
   const canSend = Boolean(agentContactId);
+  const selected = chats.find((c) => c.id === selectedId) ?? null;
+  const sessionWindowOpen = Boolean(waWindow?.open);
 
   useEffect(() => {
     return () => setActiveChatId(null);
   }, [setActiveChatId]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setWaWindow(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchWhatsAppWindow(selectedId)
+      .then((window) => {
+        if (!cancelled) setWaWindow(window);
+      })
+      .catch(() => {
+        if (!cancelled) setWaWindow({ open: false, lastCustomerMessageAt: null, expiresAt: null, customerWaId: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, selected?.lastAt]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -54,8 +75,6 @@ export default function SupportChat() {
       : chats;
     return [...list].sort((a, b) => lastAtTime(b.lastAt) - lastAtTime(a.lastAt));
   }, [chats, search]);
-
-  const selected = chats.find((c) => c.id === selectedId) ?? null;
 
   const selectChat = (id: string) => {
     setSelectedId(id);
@@ -78,6 +97,10 @@ export default function SupportChat() {
   const sendText = async (text: string) => {
     if (!selected) {
       throw new Error("Nenhuma conversa selecionada.");
+    }
+    if (!sessionWindowOpen) {
+      toast.error("A janela de 24h está fechada. Envie um template.");
+      throw new Error("Janela de 24h fechada.");
     }
     if (!agentContactId) {
       toast.error("Não há contato vinculado ao usuário logado.");
@@ -117,9 +140,57 @@ export default function SupportChat() {
     }
   };
 
+  const sendTemplate = async (templateName: string, templateLanguage: string) => {
+    if (!selected) {
+      throw new Error("Nenhuma conversa selecionada.");
+    }
+    if (!agentContactId) {
+      toast.error("Não há contato vinculado ao usuário logado.");
+      throw new Error("Contato do usuário logado não encontrado.");
+    }
+    const sendDateTime = new Date().toISOString();
+    const clientMessageId = crypto.randomUUID();
+    const preview = `[template:${templateName}]`;
+    const optimistic: ChatMessage = {
+      id: clientMessageId,
+      clientMessageId,
+      author: "agent",
+      kind: "text",
+      text: preview,
+      sentAt: sendDateTime,
+      status: "NOT_SENT",
+      senderId: agentContactId,
+      receivedByIds: [],
+      seenByIds: [],
+    };
+    patchChat(selected.id, (chat) => ({
+      ...chat,
+      lastMessage: preview,
+      lastMessageSenderId: agentContactId,
+      lastAt: sendDateTime,
+      messages: [...chat.messages, optimistic],
+    }));
+    try {
+      await enqueueChatMessage({
+        chatId: selected.id,
+        clientMessageId,
+        sendDateTime,
+        templateName,
+        templateLanguage,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar template.");
+      throw e;
+    }
+  };
+
   const sendFiles = async (files: File[], kind: "image" | "video" | "file") => {
     if (!selected) {
       throw new Error("Nenhuma conversa selecionada.");
+    }
+    if (!sessionWindowOpen) {
+      toast.error("A janela de 24h está fechada. Envie um template.");
+      throw new Error("Janela de 24h fechada.");
     }
     if (!agentContactId) {
       toast.error("Não há contato vinculado ao usuário logado.");
@@ -210,9 +281,11 @@ export default function SupportChat() {
             detailsOpen={detailsOpen}
             onToggleDetails={() => setDetailsOpen((v) => !v)}
             onSendText={sendText}
+            onSendTemplate={sendTemplate}
             onSendFiles={sendFiles}
             composerFocusKey={composerFocusKey}
             canSend={canSend}
+            sessionWindowOpen={waWindow == null ? null : waWindow.open}
             agentContactId={agentContactId}
             onMessagesLoaded={(chatId, messages) => {
               const unread = unreadMessageIds(messages, agentContactId);
