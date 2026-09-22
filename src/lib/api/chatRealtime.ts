@@ -42,8 +42,10 @@ export async function enqueueChatMessage(payload: {
   sendDateTime: string;
   templateName?: string;
   templateLanguage?: string;
+  templateId?: string;
+  templateVariables?: Record<string, string>;
   templateComponents?: Record<string, unknown>[];
-}): Promise<{ accepted: boolean; correlationId: string; clientMessageId: string; chatId: string; whatsappMessageType?: string }> {
+}): Promise<{ accepted: boolean; correlationId: string; clientMessageId: string; chatId: string; whatsappMessageType?: string; content?: string }> {
   const res = await apiRequest("/admin/chat/realtime/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

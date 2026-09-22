@@ -29,6 +29,7 @@ export const ACCESS_ROLE_GROUPS: AccessRoleGroup[] = [
       { prefix: "admin-comunication", label: "Comunicações" },
       { prefix: "admin-template-email", label: "Templates de e-mail" },
       { prefix: "admin-template-push", label: "Templates de push" },
+      { prefix: "admin-whatsapp-template", label: "Templates de WhatsApp" },
       { prefix: "admin-event-communication", label: "Comunicações de evento" },
       { prefix: "admin-account-deletion-request", label: "Exclusão de dados" },
       { prefix: "admin-chat-contact", label: "Contatos do chat" },

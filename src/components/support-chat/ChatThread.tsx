@@ -13,6 +13,7 @@ import {
 } from "@/lib/supportChat";
 import { cn } from "@/lib/utils";
 import type { ChatDeliveryReceipt, ChatMessage, SupportChat } from "@/types/supportChat";
+import type { IWhatsAppTemplate } from "@/types/whatsapp-template";
 import { Check, CheckCheck, ChevronLeft, Clock, FileText, ImageIcon, Loader2, PanelRight, Play, Video } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -48,7 +49,7 @@ export function ChatThread({
   detailsOpen: boolean;
   onToggleDetails: () => void;
   onSendText: (text: string) => void | Promise<void>;
-  onSendTemplate: (templateName: string, templateLanguage: string) => void | Promise<void>;
+  onSendTemplate: (template: IWhatsAppTemplate, variables: Record<string, string>) => void | Promise<void>;
   onSendFiles: (files: File[], kind: "image" | "video" | "file") => void | Promise<void>;
   composerFocusKey?: string | number;
   onMessagesLoaded: (chatId: string, messages: ChatMessage[]) => void;

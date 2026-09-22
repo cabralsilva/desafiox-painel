@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { WhatsAppTemplateVariablesDialog } from "@/components/support-chat/WhatsAppTemplateVariablesDialog";
 import { SendFilesConfirmDialog, type AttachKind } from "@/components/support-chat/SendFilesConfirmDialog";
-import { fetchWhatsAppTemplates, type WhatsAppApprovedTemplate } from "@/lib/api/chatRealtime";
+import { searchWhatsAppTemplates } from "@/lib/api/whatsappTemplates";
 import { CHAT_EMOJIS } from "@/lib/supportChat";
 import { cn } from "@/lib/utils";
+import type { IWhatsAppTemplate } from "@/types/whatsapp-template";
 import { FileText, ImageIcon, Paperclip, Send, Video } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
@@ -16,7 +17,10 @@ export function ChatComposer({
   sessionWindowOpen,
 }: {
   onSendText: (text: string) => void | Promise<void>;
-  onSendTemplate: (templateName: string, templateLanguage: string) => void | Promise<void>;
+  onSendTemplate: (
+    template: IWhatsAppTemplate,
+    variables: Record<string, string>
+  ) => void | Promise<void>;
   onSendFiles: (files: File[], kind: AttachKind) => void | Promise<void>;
   focusKey?: string | number;
   canSend: boolean;
@@ -27,9 +31,9 @@ export function ChatComposer({
   const [attachOpen, setAttachOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [pending, setPending] = useState<{ files: File[]; kind: AttachKind } | null>(null);
-  const [templates, setTemplates] = useState<WhatsAppApprovedTemplate[]>([]);
-  const [templateName, setTemplateName] = useState("");
-  const [templateLanguage, setTemplateLanguage] = useState("pt_BR");
+  const [templates, setTemplates] = useState<IWhatsAppTemplate[]>([]);
+  const [templateId, setTemplateId] = useState("");
+  const [pendingTemplate, setPendingTemplate] = useState<IWhatsAppTemplate | null>(null);
   const imageRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -48,9 +52,9 @@ export function ChatComposer({
   useEffect(() => {
     if (!templateOnly) return;
     let cancelled = false;
-    void fetchWhatsAppTemplates()
-      .then((items) => {
-        if (!cancelled) setTemplates(items);
+    void searchWhatsAppTemplates({ status: "APPROVED", page: 1, limit: 200 })
+      .then((result) => {
+        if (!cancelled) setTemplates(result.items ?? []);
       })
       .catch(() => {
         if (!cancelled) setTemplates([]);
@@ -75,17 +79,29 @@ export function ChatComposer({
     }
   };
 
-  const sendTemplate = async () => {
-    const name = templateName.trim();
-    if (!name || !canSend || sending) return;
+  const confirmTemplate = async (template: IWhatsAppTemplate, variables: Record<string, string>) => {
+    if (!canSend || sending) return;
     setSending(true);
     try {
-      await onSendTemplate(name, templateLanguage.trim() || "pt_BR");
+      await onSendTemplate(template, variables);
+      setPendingTemplate(null);
+      setTemplateId("");
     } catch {
-      // o nome permanece se a API falhar
+      // o diálogo permanece se a API falhar
     } finally {
       setSending(false);
     }
+  };
+
+  const pickTemplate = (id: string) => {
+    setTemplateId(id);
+    const template = templates.find((item) => (item._id || item.id) === id);
+    if (!template) return;
+    if ((template.variables || []).length) {
+      setPendingTemplate(template);
+      return;
+    }
+    void confirmTemplate(template, {});
   };
 
   const queueFiles = (list: FileList | null, kind: AttachKind) => {
@@ -118,7 +134,6 @@ export function ChatComposer({
   };
 
   const disabled = !canSend || sending;
-  const uniqueTemplateNames = Array.from(new Set(templates.map((item) => item.name)));
 
   return (
     <div className="relative shrink-0 border-t border-border bg-card p-2 sm:p-3">
@@ -225,51 +240,22 @@ export function ChatComposer({
           <p className="px-1 text-xs font-semibold text-muted-foreground">
             Janela de 24h fechada. Só é possível enviar um template aprovado do WhatsApp.
           </p>
-          {uniqueTemplateNames.length ? (
-            <select
-              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={uniqueTemplateNames.includes(templateName) ? templateName : ""}
-              onChange={(e) => {
-                const name = e.target.value;
-                setTemplateName(name);
-                const match = templates.find((item) => item.name === name);
-                if (match?.language) setTemplateLanguage(match.language);
-              }}
-              disabled={disabled}
-            >
-              <option value="">Selecionar template</option>
-              {uniqueTemplateNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
+          <select
+            className="h-12 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            value={templateId}
+            onChange={(e) => pickTemplate(e.target.value)}
+            disabled={disabled}
+          >
+            <option value="">{templates.length ? "Selecionar template" : "Nenhum template sincronizado"}</option>
+            {templates.map((item) => {
+              const id = item._id || item.id || `${item.name}:${item.language}`;
+              return (
+                <option key={id} value={id}>
+                  {item.name} ({item.language})
                 </option>
-              ))}
-            </select>
-          ) : null}
-          <div className="flex items-end gap-2">
-            <Input
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="Nome do template (ex.: hello_world)"
-              disabled={disabled}
-              className="h-12 rounded-xl"
-            />
-            <Input
-              value={templateLanguage}
-              onChange={(e) => setTemplateLanguage(e.target.value)}
-              placeholder="pt_BR"
-              disabled={disabled}
-              className="h-12 w-24 shrink-0 rounded-xl"
-            />
-            <Button
-              type="button"
-              variant="accent"
-              className="h-12 shrink-0 px-4"
-              onClick={() => void sendTemplate()}
-              disabled={disabled || !templateName.trim()}
-            >
-              Enviar template
-            </Button>
-          </div>
+              );
+            })}
+          </select>
         </div>
       ) : sessionWindowOpen === true || !canSend ? (
         <div className="flex items-end gap-2">
@@ -312,6 +298,19 @@ export function ChatComposer({
           </Button>
         </div>
       ) : null}
+
+      <WhatsAppTemplateVariablesDialog
+        open={Boolean(pendingTemplate)}
+        template={pendingTemplate}
+        sending={sending}
+        onClose={() => {
+          if (!sending) {
+            setPendingTemplate(null);
+            setTemplateId("");
+          }
+        }}
+        onConfirm={(values) => pendingTemplate && confirmTemplate(pendingTemplate, values)}
+      />
     </div>
   );
 }

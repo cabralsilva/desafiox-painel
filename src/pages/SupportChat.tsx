@@ -21,7 +21,7 @@ import { enqueueChatMessage, fetchWhatsAppWindow, type WhatsAppSessionWindow } f
 import { createChatMessage } from "@/lib/api/chatMessages";
 import { fileToApiFile, formatBytes, mapApiChatMessages, newId } from "@/lib/supportChat";
 import { cn } from "@/lib/utils";
-import type { ChatMessage, SupportTicket } from "@/types/supportChat";
+import { renderWhatsAppTemplatePreview, type IWhatsAppTemplate } from "@/types/whatsapp-template";
 import { MessageCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -140,7 +140,7 @@ export default function SupportChat() {
     }
   };
 
-  const sendTemplate = async (templateName: string, templateLanguage: string) => {
+  const sendTemplate = async (template: IWhatsAppTemplate, variables: Record<string, string>) => {
     if (!selected) {
       throw new Error("Nenhuma conversa selecionada.");
     }
@@ -150,7 +150,7 @@ export default function SupportChat() {
     }
     const sendDateTime = new Date().toISOString();
     const clientMessageId = crypto.randomUUID();
-    const preview = `[template:${templateName}]`;
+    const preview = renderWhatsAppTemplatePreview(template, variables);
     const optimistic: ChatMessage = {
       id: clientMessageId,
       clientMessageId,
@@ -171,13 +171,25 @@ export default function SupportChat() {
       messages: [...chat.messages, optimistic],
     }));
     try {
-      await enqueueChatMessage({
+      const accepted = await enqueueChatMessage({
         chatId: selected.id,
         clientMessageId,
         sendDateTime,
-        templateName,
-        templateLanguage,
+        templateId: template._id || template.id,
+        templateName: template.name,
+        templateLanguage: template.language,
+        templateVariables: variables,
+        content: preview,
       });
+      if (accepted.content) {
+        patchChat(selected.id, (chat) => ({
+          ...chat,
+          lastMessage: accepted.content || preview,
+          messages: chat.messages.map((message) =>
+            message.clientMessageId === clientMessageId ? { ...message, text: accepted.content || preview } : message
+          ),
+        }));
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enviar template.");
       throw e;
