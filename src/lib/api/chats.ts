@@ -16,6 +16,8 @@ export async function searchChats(params: {
   if (params.limit != null) sp.set("limit", String(params.limit));
   if (params.searchText) sp.set("searchText", params.searchText);
   sp.set("select", LIST_SELECT);
+  sp.set("orderBy", "updatedAtDateTime");
+  sp.set("orderSense", "desc");
   const res = await apiRequest(
     `/admin/chat/chat/${encodeURIComponent(params.contactId)}/search?${sp.toString()}`
   );

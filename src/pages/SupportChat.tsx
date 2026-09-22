@@ -82,17 +82,39 @@ export default function SupportChat() {
     setMobileShowChat(true);
     setComposerFocusKey((key) => key + 1);
     patchChat(id, (chat) => ({ ...chat, unread: 0 }));
+    try {
+      sessionStorage.setItem("desafiox.painel.supportChat", id);
+    } catch {
+      /* ignore */
+    }
   };
 
   useEffect(() => {
-    const chatId = searchParams.get("chat");
+    const stored = (() => {
+      try {
+        return sessionStorage.getItem("desafiox.painel.supportChat");
+      } catch {
+        return null;
+      }
+    })();
+    const chatId = searchParams.get("chat") || stored;
     if (!chatId) return;
     if (!chats.some((chat) => chat.id === chatId)) return;
+    if (selectedId === chatId) {
+      if (searchParams.get("chat")) {
+        const next = new URLSearchParams(searchParams);
+        next.delete("chat");
+        setSearchParams(next, { replace: true });
+      }
+      return;
+    }
     selectChat(chatId);
-    const next = new URLSearchParams(searchParams);
-    next.delete("chat");
-    setSearchParams(next, { replace: true });
-  }, [chats, searchParams, setSearchParams]);
+    if (searchParams.get("chat")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("chat");
+      setSearchParams(next, { replace: true });
+    }
+  }, [chats, searchParams, selectedId, setSearchParams]);
 
   const sendText = async (text: string) => {
     if (!selected) {
