@@ -283,6 +283,31 @@ export async function finishChampionshipRound(
   return body;
 }
 
+export type OpenGuessRoundResult = {
+  challengeRoundId: string;
+  sequenceOrder?: number;
+  status: "opened" | "skipped" | "failed";
+  message?: string;
+};
+
+export type OpenChampionshipGuessesResult = {
+  championshipRound: string;
+  opened: number;
+  skipped: number;
+  failed: number;
+  message: string;
+  results: OpenGuessRoundResult[];
+};
+
+export async function openChampionshipRoundToGuess(id: string): Promise<OpenChampionshipGuessesResult> {
+  const res = await apiRequest(`/championship-round/${encodeURIComponent(id)}/open-to-guess`, {
+    method: "PATCH",
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.message ?? `openChampionshipRoundToGuess: ${res.status}`);
+  return body as OpenChampionshipGuessesResult;
+}
+
 
 
 export function scheduleChampionshipRound(id: string) {
