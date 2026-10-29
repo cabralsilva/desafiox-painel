@@ -1,0 +1,165 @@
+# Fecha um milestone com título de versão (v1.1 ou v1.1.0) e grava essa
+# versão no package.json. v1.1 vira 1.1.0. Com o secret
+# DESAFIOX_REPO_TOKEN, o mesmo fechamento atualiza os demais
+# repositórios desafiox* deste dono.
+
+name: Versão do milestone
+
+on:
+  milestone:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calcular versão
+        id: semver
+        env:
+          TITLE: ${{ github.event.milestone.title }}
+        run: |
+          python3 - << 'PY'
+          import os, re, sys
+          title = os.environ["TITLE"].strip()
+          match = re.fullmatch(r"v?(\d+)\.(\d+)(?:\.(\d+))?", title, re.IGNORECASE)
+          if not match:
+              print(f"Título de milestone não é uma versão: {title}", file=sys.stderr)
+              sys.exit(1)
+          major, minor, patch = match.group(1), match.group(2), match.group(3) or "0"
+          version = f"{major}.{minor}.{patch}"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+          print(version)
+          PY
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Atualizar versão deste repositório
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          python3 - << 'PY'
+          import os, re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+
+          def replace_version(path: Path, count: int) -> None:
+              if not path.exists():
+                  return
+              text = path.read_text(encoding="utf-8")
+              updated, found = re.subn(
+                  r'("version"\s*:\s*")[^"]+"',
+                  lambda match: f'{match.group(1)}{version}"',
+                  text,
+                  count=count,
+              )
+              if found == 0:
+                  raise SystemExit(f"Campo version não encontrado em {path}")
+              if updated != text:
+                  path.write_text(updated, encoding="utf-8")
+
+          package = Path("package.json")
+          if not package.exists():
+              print("Repositório sem package.json; nada a alterar.")
+              raise SystemExit(0)
+          replace_version(package, 1)
+          replace_version(Path("package-lock.json"), 2)
+          PY
+          if ! git diff --quiet -- package.json package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- package.json
+            if [ -f package-lock.json ]; then
+              git add -- package-lock.json
+            fi
+            git commit -m "chore: versão ${VERSION}"
+            git push
+          else
+            echo "package.json já está em ${VERSION}."
+          fi
+
+      - name: Atualizar os demais repositórios
+        env:
+          VERSION: ${{ steps.semver.outputs.version }}
+          GH_TOKEN: ${{ secrets.DESAFIOX_REPO_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          CURRENT: ${{ github.event.repository.name }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::notice title=Versão só neste repositório::O secret DESAFIOX_REPO_TOKEN não está configurado. Um fechamento de milestone atualiza só este repositório. Para propagar a versão aos demais projetos desafiox*, crie um PAT com permissão de conteúdo e grave o secret DESAFIOX_REPO_TOKEN."
+            exit 0
+          fi
+          gh repo list "$OWNER" --limit 200 --json name,defaultBranchRef \
+            --jq '.[] | select(.name | test("^desafiox")) | [.name, .defaultBranchRef.name] | @tsv' |
+          while IFS=$'\t' read -r repo branch; do
+            if [ "$repo" = "$CURRENT" ]; then
+              continue
+            fi
+            echo "Atualizando $OWNER/$repo ($branch)"
+            python3 - "$OWNER" "$repo" "$branch" "$VERSION" << 'PY'
+          import base64, json, os, re, subprocess, sys
+
+          owner, repo, branch, version = sys.argv[1:5]
+
+          def gh_json(*args):
+              result = subprocess.run(["gh", "api", *args], check=False, capture_output=True, text=True)
+              if result.returncode != 0:
+                  if "Not Found" in result.stderr or "404" in result.stderr:
+                      return None
+                  print(result.stderr, file=sys.stderr)
+                  raise SystemExit(result.returncode)
+              return json.loads(result.stdout)
+
+          def replace_version(text, count):
+              updated, found = re.subn(
+                  r'("version"\s*:\s*")[^"]+"',
+                  lambda match: f'{match.group(1)}{version}"',
+                  text,
+                  count=count,
+              )
+              if found == 0:
+                  raise SystemExit("Campo version não encontrado")
+              return updated
+
+          def update_file(path, count):
+              payload = gh_json(f"repos/{owner}/{repo}/contents/{path}?ref={branch}")
+              if payload is None:
+                  print(f"sem {path}")
+                  return
+              current = base64.b64decode(payload["content"]).decode("utf-8")
+              updated = replace_version(current, count)
+              if updated == current:
+                  print(f"{path} já está em {version}")
+                  return
+              encoded = base64.b64encode(updated.encode("utf-8")).decode("ascii")
+              body = json.dumps({
+                  "message": f"chore: versão {version}",
+                  "content": encoded,
+                  "sha": payload["sha"],
+                  "branch": branch,
+              })
+              result = subprocess.run(
+                  ["gh", "api", "--method", "PUT", f"repos/{owner}/{repo}/contents/{path}", "--input", "-"],
+                  input=body,
+                  text=True,
+                  capture_output=True,
+              )
+              if result.returncode != 0:
+                  print(result.stderr, file=sys.stderr)
+                  raise SystemExit(result.returncode)
+              print(f"{path} atualizado")
+
+          if gh_json(f"repos/{owner}/{repo}/contents/package.json?ref={branch}") is None:
+              print("sem package.json")
+              raise SystemExit(0)
+          update_file("package.json", 1)
+          update_file("package-lock.json", 2)
+          PY
+          done
