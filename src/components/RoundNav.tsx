@@ -7,7 +7,7 @@ import {
   updateChampionshipRound,
   type OpenChampionshipGuessesResult,
 } from "@/lib/api/championships";
-import { formatDateTimeBR, toUTCISO } from "@/lib/dates";
+import { formatDateBR, toUTCISO } from "@/lib/dates";
 import { IChampionshipPhase } from "@/types/championship-phase";
 import { RoundStatus, RoundStatusTranslation, type IChampionshipRound } from "@/types/championship-round";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
@@ -38,8 +38,8 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
 
   const label = round.label ?? `Rodada ${(round.globalRoundIndex ?? roundIndex) + 1}`;
   const periodLabel = (() => {
-    const start = round.startDate ? formatDateTimeBR(new Date(round.startDate).toISOString()) : "";
-    const end = round.endDate ? formatDateTimeBR(new Date(round.endDate).toISOString()) : "";
+    const start = round.startDate ? formatDateBR(new Date(round.startDate).toISOString()) : "";
+    const end = round.endDate ? formatDateBR(new Date(round.endDate).toISOString()) : "";
     if (start && end) return `${start} → ${end}`;
     if (start) return `Início ${start}`;
     if (end) return `Fim ${end}`;

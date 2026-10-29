@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { OpenChampionshipGuessesResult } from "@/lib/api/championships";
-import { utcISOToLocalDateTimeString } from "@/lib/dates";
+import { utcISOToLocalDateString } from "@/lib/dates";
 import { RoundStatus, RoundStatusTranslation } from "@/types/championship-round";
 import { useEffect, useRef, useState } from "react";
 
@@ -38,9 +38,9 @@ interface RoundStatusEditModalProps {
   onSavePeriod: (startDate: string | null, endDate: string | null) => void;
 }
 
-function toDateTimeInput(value?: string | null): string {
+function toDateInput(value?: string | null): string {
   if (!value) return "";
-  return utcISOToLocalDateTimeString(value) ?? "";
+  return utcISOToLocalDateString(value) ?? "";
 }
 
 function roundLabel(result: OpenChampionshipGuessesResult["results"][number]): string {
@@ -76,13 +76,13 @@ export function RoundStatusEditModal({
 
   useEffect(() => {
     if (!open) return;
-    setStartDraft(toDateTimeInput(startDate));
-    setEndDraft(toDateTimeInput(endDate));
+    setStartDraft(toDateInput(startDate));
+    setEndDraft(toDateInput(endDate));
     setPeriodError("");
   }, [open, startDate, endDate]);
 
   const savePeriod = () => {
-    if (startDraft && endDraft && new Date(endDraft).getTime() < new Date(startDraft).getTime()) {
+    if (startDraft && endDraft && endDraft < startDraft) {
       setPeriodError("O fim não pode ser anterior ao início.");
       return;
     }
@@ -136,7 +136,7 @@ export function RoundStatusEditModal({
               <Label htmlFor="round-start">Início</Label>
               <Input
                 id="round-start"
-                type="datetime-local"
+                type="date"
                 className="mt-2 h-14"
                 value={startDraft}
                 disabled={busy}
@@ -150,7 +150,7 @@ export function RoundStatusEditModal({
               <Label htmlFor="round-end">Fim</Label>
               <Input
                 id="round-end"
-                type="datetime-local"
+                type="date"
                 className="mt-2 h-14"
                 value={endDraft}
                 disabled={busy}
