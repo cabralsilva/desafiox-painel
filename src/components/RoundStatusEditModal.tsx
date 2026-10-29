@@ -7,7 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { OpenChampionshipGuessesResult } from "@/lib/api/championships";
+import { utcISOToLocalDateTimeString } from "@/lib/dates";
 import { RoundStatus, RoundStatusTranslation } from "@/types/championship-round";
 import { useEffect, useRef, useState } from "react";
 
@@ -26,9 +29,18 @@ interface RoundStatusEditModalProps {
   pending?: RoundStatus | null;
   releasing?: boolean;
   releaseResult?: OpenChampionshipGuessesResult | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  savingPeriod?: boolean;
   onClose: () => void;
   onSelect: (status: RoundStatus) => void;
   onReleaseGuesses: () => void;
+  onSavePeriod: (startDate: string | null, endDate: string | null) => void;
+}
+
+function toDateTimeInput(value?: string | null): string {
+  if (!value) return "";
+  return utcISOToLocalDateTimeString(value) ?? "";
 }
 
 function roundLabel(result: OpenChampionshipGuessesResult["results"][number]): string {
@@ -43,17 +55,40 @@ export function RoundStatusEditModal({
   pending,
   releasing,
   releaseResult,
+  startDate,
+  endDate,
+  savingPeriod,
   onClose,
   onSelect,
   onReleaseGuesses,
+  onSavePeriod,
 }: RoundStatusEditModalProps) {
   const [confirming, setConfirming] = useState(false);
+  const [startDraft, setStartDraft] = useState("");
+  const [endDraft, setEndDraft] = useState("");
+  const [periodError, setPeriodError] = useState("");
   const wasReleasing = useRef(false);
-  const busy = Boolean(saving || releasing);
+  const busy = Boolean(saving || releasing || savingPeriod);
 
   useEffect(() => {
     if (!open) setConfirming(false);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setStartDraft(toDateTimeInput(startDate));
+    setEndDraft(toDateTimeInput(endDate));
+    setPeriodError("");
+  }, [open, startDate, endDate]);
+
+  const savePeriod = () => {
+    if (startDraft && endDraft && new Date(endDraft).getTime() < new Date(startDraft).getTime()) {
+      setPeriodError("O fim não pode ser anterior ao início.");
+      return;
+    }
+    setPeriodError("");
+    onSavePeriod(startDraft || null, endDraft || null);
+  };
 
   useEffect(() => {
     if (wasReleasing.current && !releasing) setConfirming(false);
@@ -62,7 +97,7 @@ export function RoundStatusEditModal({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && !busy && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[min(100%,40rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Status da rodada</DialogTitle>
           <DialogDescription>
@@ -88,6 +123,56 @@ export function RoundStatusEditModal({
             );
           })}
         </div>
+
+        <section className="space-y-3 border-t border-border pt-4">
+          <div>
+            <h3 className="text-sm font-black">Período da rodada</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Início e fim desta rodada. A data de cada jogo continua independente.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="round-start">Início</Label>
+              <Input
+                id="round-start"
+                type="datetime-local"
+                className="mt-2 h-14"
+                value={startDraft}
+                disabled={busy}
+                onChange={(event) => {
+                  setStartDraft(event.target.value);
+                  setPeriodError("");
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="round-end">Fim</Label>
+              <Input
+                id="round-end"
+                type="datetime-local"
+                className="mt-2 h-14"
+                value={endDraft}
+                disabled={busy}
+                onChange={(event) => {
+                  setEndDraft(event.target.value);
+                  setPeriodError("");
+                }}
+              />
+            </div>
+          </div>
+          {periodError ? <p className="text-sm text-destructive">{periodError}</p> : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="h-14 w-full"
+            disabled={busy}
+            onClick={savePeriod}
+          >
+            {savingPeriod ? "Salvando período..." : "Salvar período"}
+          </Button>
+        </section>
 
         <section className="space-y-3 border-t border-border pt-4">
           <div>

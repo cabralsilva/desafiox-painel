@@ -249,12 +249,23 @@ export async function updateChampionshipMatch(
 
 export async function updateChampionshipRound(
   id: string,
-  payload: Partial<{ status: IChampionshipRound["status"] }>
+  payload: Partial<{
+    status: IChampionshipRound["status"];
+    startDate: string | null;
+    endDate: string | null;
+  }>
 ): Promise<IChampionshipRound> {
+  const bodyPayload: Record<string, unknown> = { ...payload };
+  if ("startDate" in payload) {
+    bodyPayload.startDate = payload.startDate ? toUTCISO(payload.startDate) : null;
+  }
+  if ("endDate" in payload) {
+    bodyPayload.endDate = payload.endDate ? toUTCISO(payload.endDate) : null;
+  }
   const res = await apiRequest(`/championship-round/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(bodyPayload),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.message ?? `updateChampionshipRound: ${res.status}`);

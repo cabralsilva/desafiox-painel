@@ -165,7 +165,7 @@ export default function ChampionshipRounds() {
       ) : !round ? (
         <p className="p-8 text-center text-muted-foreground">Nenhuma rodada cadastrada.</p>
       ) : (
-        <div className="grid h-full min-h-0 grid-rows-[minmax(0,8%)_minmax(0,22%)_minmax(0,50%)_minmax(0,15%)] gap-1 overflow-hidden p-1 sm:gap-2 sm:p-2">
+        <div className="grid h-full min-h-0 grid-rows-[minmax(0,11%)_minmax(0,19%)_minmax(0,50%)_minmax(0,15%)] gap-1 overflow-hidden p-1 sm:gap-2 sm:p-2">
           <RoundNav
             round={round}
             roundIndex={roundIndex}
@@ -173,7 +173,16 @@ export default function ChampionshipRounds() {
             onPrev={() => setRoundIndex((i) => Math.max(0, i - 1))}
             onNext={() => setRoundIndex((i) => Math.min(rounds.length - 1, i + 1))}
             onRoundUpdated={(updated) =>
-              setRounds((prev) => prev.map((r) => (r._id === updated._id ? { ...r, status: updated.status } : r)))
+              setRounds((prev) => prev.map((item) => {
+                if (item._id !== updated._id) return item;
+                return {
+                  ...item,
+                  ...updated,
+                  phase: item.phase,
+                  startDate: "startDate" in updated ? updated.startDate : item.startDate,
+                  endDate: "endDate" in updated ? updated.endDate : item.endDate,
+                };
+              }))
             }
           />
           

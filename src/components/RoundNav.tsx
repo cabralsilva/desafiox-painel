@@ -4,8 +4,10 @@ import {
   finishChampionshipRound,
   openChampionshipRoundToGuess,
   openningChampionshipRound,
+  updateChampionshipRound,
   type OpenChampionshipGuessesResult,
 } from "@/lib/api/championships";
+import { formatDateTimeBR, toUTCISO } from "@/lib/dates";
 import { IChampionshipPhase } from "@/types/championship-phase";
 import { RoundStatus, RoundStatusTranslation, type IChampionshipRound } from "@/types/championship-round";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
@@ -26,6 +28,7 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<RoundStatus | null>(null);
   const [releasing, setReleasing] = useState(false);
+  const [savingPeriod, setSavingPeriod] = useState(false);
   const [releaseResult, setReleaseResult] = useState<OpenChampionshipGuessesResult | null>(null);
   const releasingRef = useRef(false);
 
@@ -34,6 +37,14 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
   }, [round._id]);
 
   const label = round.label ?? `Rodada ${(round.globalRoundIndex ?? roundIndex) + 1}`;
+  const periodLabel = (() => {
+    const start = round.startDate ? formatDateTimeBR(new Date(round.startDate).toISOString()) : "";
+    const end = round.endDate ? formatDateTimeBR(new Date(round.endDate).toISOString()) : "";
+    if (start && end) return `${start} → ${end}`;
+    if (start) return `Início ${start}`;
+    if (end) return `Fim ${end}`;
+    return "Período a definir";
+  })();
   const phase = round.phase ? (round.phase as IChampionshipPhase).description : "";
   const status = RoundStatusTranslation[round.status] ?? round.status;
 
@@ -96,14 +107,32 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
     }
   };
 
+  const savePeriod = async (startDate: string | null, endDate: string | null) => {
+    if (savingPeriod) return;
+    setSavingPeriod(true);
+    try {
+      const updated = await updateChampionshipRound(round._id, { startDate, endDate });
+      onRoundUpdated({
+        ...mergeRound(updated),
+        startDate: startDate ? new Date(toUTCISO(startDate)) : undefined,
+        endDate: endDate ? new Date(toUTCISO(endDate)) : undefined,
+      });
+      toast.success("Período da rodada atualizado.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar o período da rodada.");
+    } finally {
+      setSavingPeriod(false);
+    }
+  };
+
   const closeEditor = () => {
-    if (saving || releasing) return;
+    if (saving || releasing || savingPeriod) return;
     setEditOpen(false);
     setReleaseResult(null);
   };
 
   return (
-    <div className="flex min-h-0 items-center justify-center gap-10 overflow-hidden">
+    <div className="flex min-h-0 items-center justify-center gap-6 overflow-hidden sm:gap-10">
       <Button
         type="button"
         variant="secondary"
@@ -114,7 +143,8 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
       >
         <ChevronLeft className="h-[55%] w-[55%]" />
       </Button>
-      <div className="min-w-0 max-w-[18rem] text-center">
+      <div className="min-w-0 max-w-[22rem] text-center">
+        <p className="truncate text-[clamp(0.65rem,1.6vh,0.8rem)] text-muted-foreground">{periodLabel}</p>
         <p className="flex min-h-0 items-center justify-center gap-2 truncate text-[clamp(1rem,4.2vh,1.5rem)] font-black leading-tight tracking-tight">
           {label}
           <button
@@ -145,9 +175,13 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
         pending={pending}
         releasing={releasing}
         releaseResult={releaseResult}
+        startDate={round.startDate ? new Date(round.startDate).toISOString() : null}
+        endDate={round.endDate ? new Date(round.endDate).toISOString() : null}
+        savingPeriod={savingPeriod}
         onClose={closeEditor}
         onSelect={applyStatus}
         onReleaseGuesses={releaseGuesses}
+        onSavePeriod={savePeriod}
       />
     </div>
   );
