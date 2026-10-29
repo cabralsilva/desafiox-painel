@@ -2,12 +2,14 @@ import { RoundStatusEditModal } from "@/components/RoundStatusEditModal";
 import { Button } from "@/components/ui/button";
 import {
   finishChampionshipRound,
-  openningChampionshipRound
+  openChampionshipRoundToGuess,
+  openningChampionshipRound,
+  type OpenChampionshipGuessesResult,
 } from "@/lib/api/championships";
 import { IChampionshipPhase } from "@/types/championship-phase";
 import { RoundStatus, RoundStatusTranslation, type IChampionshipRound } from "@/types/championship-round";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface RoundNavProps {
@@ -23,6 +25,13 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pending, setPending] = useState<RoundStatus | null>(null);
+  const [releasing, setReleasing] = useState(false);
+  const [releaseResult, setReleaseResult] = useState<OpenChampionshipGuessesResult | null>(null);
+  const releasingRef = useRef(false);
+
+  useEffect(() => {
+    setReleaseResult(null);
+  }, [round._id]);
 
   const label = round.label ?? `Rodada ${(round.globalRoundIndex ?? roundIndex) + 1}`;
   const phase = round.phase ? (round.phase as IChampionshipPhase).description : "";
@@ -70,6 +79,29 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
     }
   };
 
+  const releaseGuesses = async () => {
+    if (releasingRef.current) return;
+    releasingRef.current = true;
+    setReleasing(true);
+    try {
+      const result = await openChampionshipRoundToGuess(round._id);
+      setReleaseResult(result);
+      if (result.failed > 0) toast.error(result.message);
+      else toast.success(result.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao liberar palpites.");
+    } finally {
+      releasingRef.current = false;
+      setReleasing(false);
+    }
+  };
+
+  const closeEditor = () => {
+    if (saving || releasing) return;
+    setEditOpen(false);
+    setReleaseResult(null);
+  };
+
   return (
     <div className="flex min-h-0 items-center justify-center gap-10 overflow-hidden">
       <Button
@@ -111,8 +143,11 @@ export function RoundNav({ round, roundIndex, total, onPrev, onNext, onRoundUpda
         current={round.status}
         saving={saving}
         pending={pending}
-        onClose={() => !saving && setEditOpen(false)}
+        releasing={releasing}
+        releaseResult={releaseResult}
+        onClose={closeEditor}
         onSelect={applyStatus}
+        onReleaseGuesses={releaseGuesses}
       />
     </div>
   );

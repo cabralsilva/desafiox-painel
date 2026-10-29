@@ -7,7 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { OpenChampionshipGuessesResult } from "@/lib/api/championships";
 import { RoundStatus, RoundStatusTranslation } from "@/types/championship-round";
+import { useEffect, useRef, useState } from "react";
 
 const STATUS_ACTIONS = [
   // { status: RoundStatus.SCHEDULED, variant: "secondary" as const },
@@ -22,8 +24,16 @@ interface RoundStatusEditModalProps {
   current: RoundStatus;
   saving?: boolean;
   pending?: RoundStatus | null;
+  releasing?: boolean;
+  releaseResult?: OpenChampionshipGuessesResult | null;
   onClose: () => void;
   onSelect: (status: RoundStatus) => void;
+  onReleaseGuesses: () => void;
+}
+
+function roundLabel(result: OpenChampionshipGuessesResult["results"][number]): string {
+  if (result.sequenceOrder != null) return `Rodada ${result.sequenceOrder}`;
+  return "Rodada de desafio";
 }
 
 export function RoundStatusEditModal({
@@ -31,11 +41,27 @@ export function RoundStatusEditModal({
   current,
   saving,
   pending,
+  releasing,
+  releaseResult,
   onClose,
   onSelect,
+  onReleaseGuesses,
 }: RoundStatusEditModalProps) {
+  const [confirming, setConfirming] = useState(false);
+  const wasReleasing = useRef(false);
+  const busy = Boolean(saving || releasing);
+
+  useEffect(() => {
+    if (!open) setConfirming(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (wasReleasing.current && !releasing) setConfirming(false);
+    wasReleasing.current = Boolean(releasing);
+  }, [releasing]);
+
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+    <Dialog open={open} onOpenChange={(next) => !next && !busy && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Status da rodada</DialogTitle>
@@ -54,7 +80,7 @@ export function RoundStatusEditModal({
                 variant={active ? "outline" : variant}
                 size="lg"
                 className={`h-14 ${status === RoundStatus.CANCELLED ? "col-span-2" : ""}`}
-                disabled={saving || active}
+                disabled={busy || active}
                 onClick={() => onSelect(status)}
               >
                 {loading ? "Aplicando..." : RoundStatusTranslation[status]}
@@ -62,8 +88,80 @@ export function RoundStatusEditModal({
             );
           })}
         </div>
+
+        <section className="space-y-3 border-t border-border pt-4">
+          <div>
+            <h3 className="text-sm font-black">Palpites do desafio</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Libera o palpite das rodadas de desafio ligadas a esta rodada. O status da rodada do campeonato não muda.
+            </p>
+          </div>
+          {confirming ? (
+            <div className="space-y-3 rounded-xl bg-secondary/60 p-3">
+              <p className="text-sm font-medium">
+                Confirmar a liberação dos palpites? Os jogadores com palpite pendente serão avisados.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  className="h-14"
+                  disabled={busy}
+                  onClick={() => setConfirming(false)}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  type="button"
+                  variant="accent"
+                  size="lg"
+                  className="h-14"
+                  disabled={busy}
+                  onClick={onReleaseGuesses}
+                >
+                  {releasing ? "Liberando..." : "Confirmar liberação"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="accent"
+              size="lg"
+              className="h-14 w-full"
+              disabled={busy}
+              onClick={() => setConfirming(true)}
+            >
+              Liberar palpites
+            </Button>
+          )}
+          {releaseResult ? (
+            <div className="space-y-2 text-sm">
+              <p className="font-medium">{releaseResult.message}</p>
+              <p className="text-muted-foreground">
+                {releaseResult.opened} abertas
+                {releaseResult.skipped ? `, ${releaseResult.skipped} já estavam abertas` : ""}
+                {releaseResult.failed ? `, ${releaseResult.failed} com falha` : ""}
+              </p>
+              {releaseResult.results?.some((item) => item.status === "failed") ? (
+                <ul className="space-y-1 text-destructive">
+                  {releaseResult.results
+                    .filter((item) => item.status === "failed")
+                    .map((item) => (
+                      <li key={item.challengeRoundId}>
+                        {roundLabel(item)}
+                        {item.message ? `: ${item.message}` : ""}
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
         <DialogFooter>
-          <Button type="button" variant="secondary" size="lg" className="h-14" onClick={onClose} disabled={saving}>
+          <Button type="button" variant="secondary" size="lg" className="h-14" onClick={onClose} disabled={busy}>
             Fechar
           </Button>
         </DialogFooter>
