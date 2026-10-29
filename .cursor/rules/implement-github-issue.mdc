@@ -1,0 +1,22 @@
+---
+description: Ao implementar uma issue do GitHub, criar a branch no padrão e abrir PR para a main
+alwaysApply: true
+---
+
+# Implementar issue do GitHub
+
+Quando o pedido for implementar uma issue, faça o trabalho numa branch nova e abra o PR para `main`. Não vale para issues já implementadas antes desta regra.
+
+1. Leia a label da issue.
+2. Ao iniciar, atribua a issue ao usuário logado (`gh issue edit {numero} --add-assignee @me`) e mova o card no quadro DESAFIOX para **In Progress**.
+3. Crie a branch a partir de `main`, com descrição curta em minúsculas e palavras separadas por `_`:
+   - `enhancement`: `feat/issue_{numero}_{descricao}`
+   - `bug`: `bugfix/issue_{numero}_{descricao}`
+4. Implemente e faça o commit só nessa branch. Não misture alterações de outra issue.
+5. Abra o PR para `main`, com `Closes #{numero}` no corpo, e devolva a URL.
+6. O workflow de pull request mergeado na `main` fecha essa issue. Não feche a issue antes do merge.
+
+Exemplos:
+
+- Issue #3, label `enhancement`: `feat/issue_3_challenge_open_guess`
+- Issue #1, label `bug`: `bugfix/issue_1_registrar_template_waba`
